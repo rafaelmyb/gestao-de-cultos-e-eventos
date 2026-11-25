@@ -875,6 +875,9 @@ const EventProvider: React.FC<{ children: ReactNode; eventId: string; canCreate:
       importMultiSessionData
     }}>
       {children}
+      <div className={`fixed top-1 left-1 z-[10000] rounded px-2 py-1 text-[10px] font-mono pointer-events-none ${sync.status === 'synced' ? 'bg-green-950/90 text-green-300' : 'bg-yellow-950/90 text-yellow-200'}`}>
+        {eventId} · {sync.status === 'synced' ? 'Conectado' : sync.status === 'syncing' ? 'Enviando…' : sync.status === 'offline' ? 'Sem conexão' : sync.status === 'missing' ? 'Aguardando organizador' : 'Conectando…'}
+      </div>
       {sync.status !== 'synced' && sync.status !== 'syncing' && (
         <div role="status" className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[10000] max-w-[90vw] rounded-lg border border-yellow-700 bg-yellow-950 px-4 py-2 text-center text-sm text-yellow-100 shadow-lg">
           {sync.status === 'offline' ? 'Sem sincronização: alterações salvas só neste dispositivo. Tentando reconectar…' : sync.status === 'missing' ? 'Aguardando o organizador publicar este evento. Confira o código do evento.' : 'Conectando ao evento…'}

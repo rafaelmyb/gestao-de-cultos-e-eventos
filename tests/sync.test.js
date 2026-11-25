@@ -93,3 +93,14 @@ test('partial role updates preserve other teams', () => {
   const result = mergeState({ roster: { gestorCulto: 'Ana', nucleos: { SOM: 'A', LUZ: 'B' } } }, { roster: { nucleos: { SOM: 'C' } } });
   assert.equal(result.roster.gestorCulto, 'Ana'); assert.equal(result.roster.nucleos.LUZ, 'B');
 });
+
+test('mobile browsers without AbortSignal.timeout still synchronize', async () => {
+  const original = AbortSignal.timeout;
+  AbortSignal.timeout = undefined;
+  try {
+    const db = backend(), admin = device(db), phone = device(db);
+    await admin.create('MOBILE');
+    await admin.write('MOBILE', 'update', { status: 'RUNNING', targetEndTime: 9000 });
+    assert.equal((await phone.get('MOBILE')).status, 'RUNNING');
+  } finally { AbortSignal.timeout = original; }
+});

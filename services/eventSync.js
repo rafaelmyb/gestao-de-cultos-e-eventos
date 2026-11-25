@@ -33,8 +33,14 @@ export function createEventStore({ storage, fetcher, now = Date.now, defaults })
   }
   async function request(path, options = {}) {
     const started = now();
-    const response = await fetcher(path, { ...options, cache: 'no-store', signal: AbortSignal.timeout(10000) });
-    const data = await response.json();
+    // AbortSignal.timeout is absent in older Safari and embedded mobile browsers.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    let response, data;
+    try {
+      response = await fetcher(path, { ...options, cache: 'no-store', signal: controller.signal });
+      data = await response.json();
+    } finally { clearTimeout(timeout); }
     if (!response.ok) throw new Error(data.error || 'Falha na sincronização.');
     if (Number.isFinite(data.serverTime)) offset = data.serverTime - (started + now()) / 2;
     return data;

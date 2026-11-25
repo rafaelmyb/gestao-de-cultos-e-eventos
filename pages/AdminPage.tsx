@@ -1126,14 +1126,14 @@ const AdminPage: React.FC = () => {
           </div>
           <div className="flex gap-4 mt-12">
             {status === ItemStatus.RUNNING ? (
-               <button onClick={pauseItem} className="w-24 h-24 rounded-full bg-yellow-600 hover:bg-yellow-500 flex items-center justify-center transition shadow-[0_0_20px_rgba(234,179,8,0.3)]"><Pause size={40} fill="white" /></button>
+               <button aria-label="Pausar contagem" title="Pausar contagem" onClick={pauseItem} className="w-24 h-24 rounded-full bg-yellow-600 hover:bg-yellow-500 flex items-center justify-center transition shadow-[0_0_20px_rgba(234,179,8,0.3)]"><Pause size={40} fill="white" /></button>
             ) : status === ItemStatus.PAUSED ? (
-              <button onClick={resumeItem} className="w-24 h-24 rounded-full bg-broadcast-green hover:bg-green-500 flex items-center justify-center transition shadow-[0_0_20px_rgba(0,255,0,0.3)]"><Play size={40} fill="white" className="ml-1"/></button>
+              <button aria-label="Retomar contagem" title="Retomar contagem" onClick={resumeItem} className="w-24 h-24 rounded-full bg-broadcast-green hover:bg-green-500 flex items-center justify-center transition shadow-[0_0_20px_rgba(0,255,0,0.3)]"><Play size={40} fill="white" className="ml-1"/></button>
             ) : (
-              <button onClick={() => activeItemId ? playItem(activeItemId) : null} className="w-24 h-24 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center transition disabled:opacity-50"><Play size={40} fill="white" className="ml-1"/></button>
+              <button aria-label="Iniciar contagem" title="Iniciar contagem" disabled={items.length === 0} onClick={() => { const id = activeItemId || items[0]?.id; if (id) playItem(id); }} className="w-24 h-24 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center transition disabled:opacity-50"><Play size={40} fill="white" className="ml-1"/></button>
             )}
-            <button onClick={stopItem} className="w-24 h-24 rounded-full bg-broadcast-red hover:bg-red-500 flex items-center justify-center transition shadow-[0_0_20px_rgba(255,0,0,0.3)]"><Square size={36} fill="white" /></button>
-            <button onClick={nextItem} className="w-24 h-24 rounded-full bg-gray-800 hover:bg-gray-700 border border-gray-600 flex items-center justify-center transition group"><SkipForward size={36} className="group-hover:text-broadcast-green transition-colors"/></button>
+            <button aria-label="Parar contagem" title="Parar contagem" onClick={stopItem} className="w-24 h-24 rounded-full bg-broadcast-red hover:bg-red-500 flex items-center justify-center transition shadow-[0_0_20px_rgba(255,0,0,0.3)]"><Square size={36} fill="white" /></button>
+            <button aria-label="Próximo item" title="Próximo item" onClick={nextItem} className="w-24 h-24 rounded-full bg-gray-800 hover:bg-gray-700 border border-gray-600 flex items-center justify-center transition group"><SkipForward size={36} className="group-hover:text-broadcast-green transition-colors"/></button>
           </div>
         </div>
 
