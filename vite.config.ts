@@ -6,7 +6,7 @@ import eventsHandler from './api/events.js';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   // Only the dev server receives these values; never inject them into the browser bundle.
-  for (const key of ['SUPABASE_URL', 'SUPABASE_KEY']) {
+  for (const key of ['CULTOS_SUPABASE_URL', 'CULTOS_SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) {
     if (env[key]) process.env[key] = env[key];
   }
   return {

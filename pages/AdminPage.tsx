@@ -17,7 +17,7 @@ import { useParams } from 'react-router-dom';
 const AdminPage: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const { 
-    eventName, items, activeItemId, playItem, stopItem, pauseItem, resumeItem, nextItem, 
+    syncStatus, syncError, eventName, items, activeItemId, playItem, stopItem, pauseItem, resumeItem, nextItem,
     status, updateItems, addItem, deleteItem, editItem, moveItem, timerDirection, 
     toggleTimerDirection, autoAdvance, toggleAutoAdvance, roster, equipmentStatus, updateRoster, toggleEquipment,
     customRoles, customEquipment, addCustomRole, addCustomEquipment, removeCustomRole, removeCustomEquipment,
@@ -1182,8 +1182,8 @@ const AdminPage: React.FC = () => {
             <button onClick={handleShare} className="p-2 hover:bg-gray-700 rounded-full transition text-gray-300 hover:text-white" title="Compartilhar Link"><Share2 size={20} /></button>
             
             {/* CLOUD STATUS INDICATOR */}
-            <div className="pl-2 border-l border-gray-700 ml-2" title="Status da Nuvem">
-                <Cloud size={16} className="text-green-500" />
+            <div className="pl-2 border-l border-gray-700 ml-2" title={syncStatus === 'synced' ? 'Sincronizado com os outros dispositivos' : syncError || 'Sincronizando…'}>
+                {syncStatus === 'synced' ? <Cloud size={16} className="text-green-500" /> : <CloudOff size={16} className="text-yellow-500" />}
             </div>
          </div>
       </div>

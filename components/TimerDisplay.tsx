@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useEvent } from '../context/EventContext';
 import { ItemStatus } from '../types';
+import { getServerNow } from '../services/database';
 
 interface TimerDisplayProps {
   size?: 'small' | 'medium' | 'large' | 'massive' | 'viewer';
@@ -28,7 +29,7 @@ const TimerDisplay: React.FC<TimerDisplayProps> = ({ size = 'medium', minimal = 
     } else if (status === ItemStatus.PAUSED && pausedAtTime !== null) {
       remainingMs = pausedAtTime;
     } else if (status === ItemStatus.RUNNING && targetEndTime) {
-      remainingMs = targetEndTime - Date.now();
+      remainingMs = targetEndTime - getServerNow();
     }
 
     // 2. Calculate Progress Percentage (0% to 100% remaining)
@@ -84,7 +85,7 @@ const TimerDisplay: React.FC<TimerDisplayProps> = ({ size = 'medium', minimal = 
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, [status, targetEndTime, pausedAtTime, activeItemId, timerDirection]);
+  }, [status, targetEndTime, pausedAtTime, activeItemId, timerDirection, activeItem?.durationSeconds]);
 
   // Visual Styles
   let colorClass = 'text-broadcast-green';

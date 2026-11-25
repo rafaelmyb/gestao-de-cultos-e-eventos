@@ -114,6 +114,8 @@ export interface EventState {
 }
 
 export interface EventContextType extends EventState {
+  syncStatus: string;
+  syncError: string;
   setEventName: (name: string) => void;
   setConferenceLogo: (logo: string) => void;
   setScheduledStartTime: (time: number | null) => void;

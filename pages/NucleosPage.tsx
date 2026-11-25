@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useEvent } from '../context/EventContext';
 import TimerDisplay from '../components/TimerDisplay';
 import { ItemStatus, TeamRole } from '../types';
+import { getServerNow } from '../services/database';
 import { 
   AlertTriangle, Projector, Lightbulb, Radio, Mic2, 
   Music, User, Users, MoreHorizontal, ArrowLeft, PlusCircle, Megaphone,
@@ -100,7 +101,7 @@ const NucleosPage: React.FC = () => {
             // 1. Remaining time of current item
             if (activeItem) {
                 if (status === ItemStatus.RUNNING && targetEndTime) {
-                    seconds += Math.max(0, (targetEndTime - Date.now()) / 1000);
+                    seconds += Math.max(0, (targetEndTime - getServerNow()) / 1000);
                 } else if (status === ItemStatus.PAUSED && activeItem) {
                      seconds += activeItem.durationSeconds; 
                 } else if (status === ItemStatus.IDLE) {

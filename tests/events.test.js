@@ -1,13 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { randomBytes } from 'node:crypto';
 import events from '../api/events.js';
-
 process.env.VERCEL = '1';
-process.env.SUPABASE_URL = 'https://db.example';
-process.env.SUPABASE_KEY = randomBytes(24).toString('hex');
+process.env.CULTOS_SUPABASE_URL = 'https://db.example';
+process.env.CULTOS_SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
 function req(method = 'GET', extra = {}) {
-  return { method, url: '/api/events?select=id&limit=1', headers: { host: 'app.example', origin: 'https://app.example' }, socket: {}, ...extra };
+  return { method, url: '/api/events?id=TESTE', headers: { host: 'app.example', origin: 'https://app.example' }, socket: {}, ...extra };
 }
 async function call(request) {
   const result = { headers: {}, statusCode: 200, text: '' };
@@ -16,30 +14,37 @@ async function call(request) {
   await events(request, result);
   return result;
 }
-test('read, create and update work without a password or session; credentials stay on server', async () => {
+test('GET reads one event and POST uses atomic RPC; credentials stay private and caching is disabled', async () => {
   const originalFetch = globalThis.fetch;
   let seen;
-  globalThis.fetch = async (url, options) => { seen = { url, options }; return new Response('[]', { status: 200 }); };
+  globalThis.fetch = async (url, options) => {
+    seen = { url, options };
+    const event = { payload: { status: 'RUNNING' }, revision: 2 };
+    return new Response(JSON.stringify(options.method === 'GET' ? [event] : event));
+  };
   try {
-    for (const method of ['GET', 'POST', 'PATCH']) {
-      const result = await call(req(method, method === 'GET' ? {} : { body: { id: 'TEST', payload: {} } }));
-      assert.equal(result.statusCode, 200);
-      assert.equal(seen.url.pathname, '/rest/v1/events');
-      assert.equal(seen.options.method, method);
-      assert.equal(seen.options.headers.apikey, process.env.SUPABASE_KEY);
-      assert.equal(result.text.includes(process.env.SUPABASE_KEY), false);
-      assert.equal(result.headers['cache-control'], 'no-store');
-      assert.equal(result.headers['set-cookie'], undefined);
-    }
+    const read = await call(req());
+    assert.equal(read.statusCode, 200);
+    assert.equal(seen.url.searchParams.get('id'), 'eq.TESTE');
+    assert.equal(JSON.parse(read.text).event.payload.status, 'RUNNING');
+    const write = await call(req('POST', { body: { id: 'TESTE', action: 'update', payload: { status: 'PAUSED' } } }));
+    assert.equal(write.statusCode, 200);
+    assert.equal(seen.url.pathname, '/rest/v1/rpc/save_event');
+    assert.equal(seen.options.headers.apikey, 'test-service-key');
+    assert.equal(write.text.includes('test-service-key'), false);
+    assert.equal(write.headers['cache-control'], 'no-store');
+    assert.ok(JSON.parse(write.text).serverTime > 0);
   } finally { globalThis.fetch = originalFetch; }
 });
-test('cross-origin writes and unsupported methods remain blocked', async () => {
+test('invalid IDs, operations, origins and methods are rejected', async () => {
   assert.equal((await call(req('POST', { headers: { host: 'app.example', origin: 'https://other.example' } }))).statusCode, 403);
   assert.equal((await call(req('DELETE'))).statusCode, 405);
+  assert.equal((await call(req('GET', { url: '/api/events?id=../secret' }))).statusCode, 400);
+  assert.equal((await call(req('POST', { body: { id: 'TESTE', action: 'delete', payload: {} } }))).statusCode, 400);
 });
-test('missing database configuration returns an actionable failure, not a login challenge', async () => {
-  const original = process.env.SUPABASE_KEY;
-  delete process.env.SUPABASE_KEY;
-  try { assert.equal((await call(req())).statusCode, 503); }
-  finally { process.env.SUPABASE_KEY = original; }
+test('database failure is reported instead of claiming the event is synchronized', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('DNS failure'); };
+  try { assert.equal((await call(req())).statusCode, 502); }
+  finally { globalThis.fetch = original; }
 });

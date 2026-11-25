@@ -1,23 +1,24 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { EventContextType, EventState, ItemStatus, RundownItem, ConferenceSession } from '../types';
-import { getEventRef, subscribeToEvent } from '../services/database';
+import { getEventRef, subscribeToEvent, getServerNow, getSyncStatus, onSyncStatus } from '../services/database';
 
 const EventContext = createContext<EventContextType | undefined>(undefined);
 
 // Wrapper Component that reads the ID from URL and initializes provider
 export const EventProviderWrapper: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { eventId } = useParams<{ eventId: string }>();
+  const { pathname } = useLocation();
   
   if (!eventId) {
     return <>{children}</>;
   }
 
-  return <EventProvider eventId={eventId}>{children}</EventProvider>;
+  return <EventProvider key={eventId.toUpperCase()} eventId={eventId.toUpperCase()} canCreate={pathname.startsWith('/admin/')}>{children}</EventProvider>;
 };
 
-const EventProvider: React.FC<{ children: ReactNode; eventId: string }> = ({ children, eventId }) => {
+const EventProvider: React.FC<{ children: ReactNode; eventId: string; canCreate: boolean }> = ({ children, eventId, canCreate }) => {
   const [state, setState] = useState<EventState>({
     eventName: '',
     conferenceLogo: undefined,
@@ -42,27 +43,37 @@ const EventProvider: React.FC<{ children: ReactNode; eventId: string }> = ({ chi
     equipmentStatus: {}
   });
 
+  const [sync, setSync] = useState(getSyncStatus(eventId));
+  useEffect(() => {
+    setSync(getSyncStatus(eventId));
+    return onSyncStatus((id, status, error) => { if (id === eventId) setSync({ status, error }); });
+  }, [eventId]);
+
   const [isLoading, setIsLoading] = useState(true);
   const autoAdvanceRef = useRef<number | null>(null);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
+    let cancelled = false;
 
     const init = async () => {
         setIsLoading(true);
         try {
             // Tenta carregar. Se falhar na nuvem, o database.ts já tem fallback local
-            const initialData = await getEventRef(eventId).createIfNotExists();
-            if (initialData) {
+            const initialData = canCreate
+              ? await getEventRef(eventId).createIfNotExists()
+              : await getEventRef(eventId).get();
+            if (!cancelled && initialData) {
                 setState(prev => ({...prev, ...initialData}));
             }
         } catch (e) {
             console.warn("Status na inicialização (Carregado com cache local de segurança):", e);
         } finally {
             // Garante que a tela de loading saia, mesmo se der erro no Supabase
-            setIsLoading(false);
+            if (!cancelled) setIsLoading(false);
         }
         
+        if (cancelled) return;
         unsubscribe = subscribeToEvent(
             eventId, 
             (newData) => {
@@ -78,9 +89,10 @@ const EventProvider: React.FC<{ children: ReactNode; eventId: string }> = ({ chi
     init();
     
     return () => {
+        cancelled = true;
         if (unsubscribe) unsubscribe();
     };
-  }, [eventId]);
+  }, [eventId, canCreate]);
 
   const pushUpdate = useCallback((updates: Partial<EventState>) => {
     // Atualiza estado local otimista (React)
@@ -131,7 +143,7 @@ const EventProvider: React.FC<{ children: ReactNode; eventId: string }> = ({ chi
     if (itemIndex === -1) return;
     const item = state.items[itemIndex];
 
-    const now = Date.now();
+    const now = getServerNow();
     
     // Log Start Time Logic
     const newItems = [...state.items];
@@ -156,7 +168,7 @@ const EventProvider: React.FC<{ children: ReactNode; eventId: string }> = ({ chi
 
   const pauseItem = () => {
     if (state.status !== ItemStatus.RUNNING || !state.targetEndTime) return;
-    const now = Date.now();
+    const now = getServerNow();
     const remaining = state.targetEndTime - now;
     pushUpdate({
       status: ItemStatus.PAUSED,
@@ -167,7 +179,7 @@ const EventProvider: React.FC<{ children: ReactNode; eventId: string }> = ({ chi
 
   const resumeItem = () => {
     if (state.status !== ItemStatus.PAUSED || state.pausedAtTime === null) return;
-    const now = Date.now();
+    const now = getServerNow();
     pushUpdate({
       status: ItemStatus.RUNNING,
       targetEndTime: now + state.pausedAtTime,
@@ -179,7 +191,7 @@ const EventProvider: React.FC<{ children: ReactNode; eventId: string }> = ({ chi
     // Record End Time for active item
     let newItems = state.items;
     if (state.activeItemId) {
-        newItems = state.items.map(i => i.id === state.activeItemId ? { ...i, executedEnd: Date.now() } : i);
+        newItems = state.items.map(i => i.id === state.activeItemId ? { ...i, executedEnd: getServerNow() } : i);
     }
 
     pushUpdate({
@@ -192,7 +204,7 @@ const EventProvider: React.FC<{ children: ReactNode; eventId: string }> = ({ chi
 
   const nextItem = () => {
     const currentIndex = state.items.findIndex(i => i.id === state.activeItemId);
-    const now = Date.now();
+    const now = getServerNow();
     
     // 1. Close current item log
     let newItems = [...state.items];
@@ -336,7 +348,7 @@ const EventProvider: React.FC<{ children: ReactNode; eventId: string }> = ({ chi
       id: crypto.randomUUID(),
       text,
       targetRoles: targets,
-      timestamp: Date.now()
+      timestamp: getServerNow()
     };
     pushUpdate({ messages: [...(state.messages || []), newMessage] });
   };
@@ -476,7 +488,7 @@ const EventProvider: React.FC<{ children: ReactNode; eventId: string }> = ({ chi
   };
 
   const markServiceEnd = () => {
-     const now = Date.now();
+     const now = getServerNow();
      pushUpdate({ actualEndTime: now });
   };
 
@@ -508,7 +520,7 @@ const EventProvider: React.FC<{ children: ReactNode; eventId: string }> = ({ chi
         return `${m}m${s > 0 ? ` ${s}s` : ''}`;
     };
 
-    let runningSchedule = actualStartTime || Date.now();
+    let runningSchedule = actualStartTime || getServerNow();
     
     const reportHTML = `
       <!DOCTYPE html>
@@ -666,7 +678,7 @@ const EventProvider: React.FC<{ children: ReactNode; eventId: string }> = ({ chi
     }
 
     // Calcula tempo previsto corrido
-    let runningSchedule = scheduledStartTime || Date.now();
+    let runningSchedule = scheduledStartTime || getServerNow();
     const fmtTime = (ts: number) => new Date(ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     const fmtDur = (sec: number) => {
         const m = Math.floor(sec / 60);
@@ -796,11 +808,11 @@ const EventProvider: React.FC<{ children: ReactNode; eventId: string }> = ({ chi
   });
 
   useEffect(() => {
-    if (state.autoAdvance && state.status === ItemStatus.RUNNING && state.targetEndTime) {
+    if (canCreate && state.autoAdvance && state.status === ItemStatus.RUNNING && state.targetEndTime) {
         if (autoAdvanceRef.current !== null) window.clearInterval(autoAdvanceRef.current);
         
         autoAdvanceRef.current = window.setInterval(() => {
-            const now = Date.now();
+            const now = getServerNow();
             if (now >= state.targetEndTime! + 200) {
                  nextItemRef.current();
             }
@@ -814,7 +826,7 @@ const EventProvider: React.FC<{ children: ReactNode; eventId: string }> = ({ chi
     return () => {
         if (autoAdvanceRef.current !== null) window.clearInterval(autoAdvanceRef.current);
     };
-  }, [state.autoAdvance, state.status, state.targetEndTime]); 
+  }, [canCreate, state.autoAdvance, state.status, state.targetEndTime]);
 
   if (isLoading) {
     return <div className="h-screen w-screen flex items-center justify-center bg-black text-white font-mono">CARREGANDO...</div>;
@@ -823,6 +835,8 @@ const EventProvider: React.FC<{ children: ReactNode; eventId: string }> = ({ chi
   return (
     <EventContext.Provider value={{
       ...state,
+      syncStatus: sync.status,
+      syncError: sync.error,
       setEventName,
       setConferenceLogo,
       setScheduledStartTime,
@@ -861,6 +875,11 @@ const EventProvider: React.FC<{ children: ReactNode; eventId: string }> = ({ chi
       importMultiSessionData
     }}>
       {children}
+      {sync.status !== 'synced' && sync.status !== 'syncing' && (
+        <div role="status" className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[10000] max-w-[90vw] rounded-lg border border-yellow-700 bg-yellow-950 px-4 py-2 text-center text-sm text-yellow-100 shadow-lg">
+          {sync.status === 'offline' ? 'Sem sincronização: alterações salvas só neste dispositivo. Tentando reconectar…' : sync.status === 'missing' ? 'Aguardando o organizador publicar este evento. Confira o código do evento.' : 'Conectando ao evento…'}
+        </div>
+      )}
     </EventContext.Provider>
   );
 };
