@@ -324,10 +324,6 @@ const LandingPage: React.FC = () => {
                                 )}
                             </div>
 
-                            <div>
-                                <label className="block text-xs text-gray-400 uppercase mb-1 font-bold flex items-center gap-1"><Lock size={12}/> Senha</label>
-                                <p className="text-sm text-green-400">Sessão autenticada</p>
-                            </div>
                             {error && <p className="text-red-500 text-sm font-mono">{error}</p>}
                             <button type="submit" className="w-full bg-brand-red text-white font-bold py-3 rounded hover:bg-red-500 transition">INICIAR</button>
                         </div>

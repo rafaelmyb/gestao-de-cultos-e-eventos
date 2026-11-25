@@ -20,7 +20,6 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
           'Prefer': new Headers(init?.headers).get('Prefer') || '',
         },
       });
-      if (response.status === 401) window.dispatchEvent(new Event('session-expired'));
       return response;
     },
   },
@@ -247,7 +246,7 @@ export const subscribeToEvent = (eventId: string, onUpdate: (data: EventState) =
   };
   window.addEventListener('storage', localHandler);
 
-  // Authenticated polling keeps database credentials on the server.
+  // Polling keeps database credentials on the server.
   let stopped = false;
   let timeout: ReturnType<typeof setTimeout>;
   const poll = async () => {

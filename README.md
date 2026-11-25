@@ -26,18 +26,13 @@ Os arquivos de produção são gerados em `dist`.
 
 Importe este repositório na Vercel. O arquivo `vercel.json` configura o framework Vite, o comando de build e a pasta de saída. A branch de produção é `main`.
 
-## Autenticação e configuração
+## Acesso e configuração
 
-Copie `.env.example` para `.env.local` e configure:
+O aplicativo abre diretamente na tela inicial, sem senha ou login. Todos os painéis e a API de eventos são públicos: qualquer pessoa com o endereço pode consultar e alterar eventos. Não use esta versão para dados restritos.
 
-- `PANEL_PASSWORD`: senha compartilhada forte, com pelo menos 16 caracteres.
-- `SESSION_SECRET`: segredo aleatório de pelo menos 32 caracteres, usado para assinar as sessões.
-- `SUPABASE_URL` e `SUPABASE_KEY`: configuração do banco, usada apenas no servidor.
+Copie `.env.example` para `.env.local` e configure `SUPABASE_URL` e `SUPABASE_KEY`. Cadastre as mesmas variáveis na Vercel. A configuração do banco fica apenas no servidor; nunca use o prefixo `VITE_` para segredos.
 
-Cadastre essas mesmas variáveis na Vercel. Nunca use o prefixo `VITE_` para segredos.
-Todos os painéis, incluindo telão e núcleos, exigem login. A sessão dura 12 horas, usa cookie HttpOnly, Secure em produção e SameSite=Strict. Alterar a senha invalida as sessões existentes. O botão Sair apaga o cookie do dispositivo e o cache local de eventos.
-
-As operações no banco passam por `/api/events`, que verifica a sessão. A sincronização entre dispositivos consulta a API a cada 1,5 segundo. As políticas RLS do Supabase continuam sendo necessárias para proteger o acesso direto ao banco. O aplicativo usa uma senha compartilhada, sem contas ou permissões individuais. A limitação de tentativas de login é por instância do servidor.
+As operações no banco passam por `/api/events`. A sincronização entre dispositivos consulta a API a cada 1,5 segundo. As políticas RLS do Supabase continuam sendo necessárias para proteger o acesso direto ao banco.
 
 O servidor Vite local disponibiliza as mesmas APIs durante `npm run dev`. `npm run preview` serve somente o frontend compilado.
 
@@ -52,4 +47,4 @@ npm run build
 ## Limitações existentes
 
 - Os recursos de IA dependem do Gemini e ainda precisam de uma integração no servidor. Nenhuma chave privada Gemini é publicada no navegador.
-- Sem conexão com o Supabase, a aplicação usa o armazenamento local do navegador. O acesso ao aplicativo ainda exige uma sessão autenticada.
+- Sem conexão com o Supabase, a aplicação usa o armazenamento local do navegador.

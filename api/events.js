@@ -1,6 +1,5 @@
-import { authenticated, sameOrigin, json, body } from '../server/auth.js';
+import { sameOrigin, json, body } from '../server/http.js';
 export default async function handler(req, res) {
-  if (!authenticated(req)) return json(res, 401, { error: 'Faça login para acessar os eventos.' });
   if (!['GET', 'POST', 'PATCH'].includes(req.method)) return json(res, 405, { error: 'Método não permitido.' });
   if (req.method !== 'GET' && !sameOrigin(req)) return json(res, 403, { error: 'Origem não permitida.' });
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) return json(res, 503, { error: 'Banco de dados não configurado.' });
